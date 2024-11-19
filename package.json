@@ -1,8 +1,8 @@
 {
-  "name": "firebot-custom-script-starter",
-  "scriptOutputName": "starterScript",
+  "name": "firebot-script-bluesky",
+  "scriptOutputName": "bluesky",
   "version": "1.0.0",
-  "description": "A starter Firebot custom script",
+  "description": "A Firebot script that adds the ability to post to Bluesky",
   "main": "",
   "scripts": {
     "build": "webpack",
@@ -26,5 +26,8 @@
   "volta": {
     "node": "20.14.0",
     "npm": "10.8.1"
+  },
+  "dependencies": {
+    "@skyware/bot": "^0.3.7"
   }
 }
