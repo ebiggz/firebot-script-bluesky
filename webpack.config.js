@@ -12,6 +12,7 @@ module.exports = {
   output: {
     libraryTarget: "commonjs2",
     libraryExport: "default",
+    chunkFormat: false,
     path: path.resolve(__dirname, "./dist"),
     filename: `${packageJson.scriptOutputName}.js`,
   },
@@ -28,7 +29,6 @@ module.exports = {
   },
   optimization: {
     minimize: true,
-
     minimizer: [
       new TerserPlugin({
         terserOptions: {
