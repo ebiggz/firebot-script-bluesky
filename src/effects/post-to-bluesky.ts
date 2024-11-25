@@ -242,7 +242,7 @@ export const postToBlueskyEffectType: Effects.EffectType<
       if (effect.sendAsReply) {
         const replyToPostAtUri = effect.useCustomReplyToPostUri
           ? effect.replyToPostUri
-          : (trigger.metadata.eventData.blueskyPostAtUri as string);
+          : (trigger?.metadata?.eventData?.blueskyPostAtUri as string);
 
         if (!replyToPostAtUri?.length) {
           logger.error("No post AT URI to reply to");

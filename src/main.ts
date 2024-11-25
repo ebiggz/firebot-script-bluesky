@@ -16,6 +16,7 @@ import {
   VariableConfig,
 } from "@crowbartools/firebot-custom-scripts-types/types/modules/replace-variable-factory";
 import { ReplaceVariableManager } from "@crowbartools/firebot-custom-scripts-types/types/modules/replace-variable-manager";
+import { likePostOnBlueskyEffectType } from "./effects/like-post-on-bluesky";
 
 const script: Firebot.CustomScript = {
   getScriptManifest: () => {
@@ -50,6 +51,10 @@ const script: Firebot.CustomScript = {
 
     runRequest.modules.effectManager.registerEffect(
       postToBlueskyEffectType as any
+    );
+
+    runRequest.modules.effectManager.registerEffect(
+      likePostOnBlueskyEffectType as any
     );
   },
 };
