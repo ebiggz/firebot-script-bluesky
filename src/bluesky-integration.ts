@@ -15,7 +15,6 @@ import {
 import { logger } from "./logger";
 import { BLUESKY_INTEGRATION_ID } from "./constants";
 import { BlueskyEvent, BlueskyIntegrationSettings } from "./types";
-import { log } from "console";
 
 class IntegrationEventEmitter extends TypedEmitter<IntegrationEvents> {}
 
