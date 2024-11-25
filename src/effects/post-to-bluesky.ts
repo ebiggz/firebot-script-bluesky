@@ -2,6 +2,7 @@ import { Firebot } from "@crowbartools/firebot-custom-scripts-types";
 import { logger } from "../logger";
 import { blueskyIntegration } from "../bluesky-integration";
 import { Effects } from "@crowbartools/firebot-custom-scripts-types/types/effects";
+import { Post, PostPayload, PostReference } from "@skyware/bot";
 
 type PostToBlueskyData = {
   text: string;
@@ -9,6 +10,9 @@ type PostToBlueskyData = {
   embedType?: "none" | "link" | "image";
   linkUrl?: string;
   imageUrls?: string[];
+  sendAsReply?: boolean;
+  useCustomReplyToPostUri?: boolean;
+  replyToPostUri?: string;
 };
 
 export const postToBlueskyEffectType: Effects.EffectType<
@@ -62,7 +66,7 @@ export const postToBlueskyEffectType: Effects.EffectType<
         <editable-list settings="imageUrlSettings" model="effect.imageUrls" />
       </div>
     </eos-container>
-    <eos-container header="Interaction settings" pad-top="true">
+    <eos-container header="Interaction Settings" pad-top="true">
       <div class="form-group">
           <label for="allowRepliesFrom" class="control-label">Allow replies from:</label>
           <firebot-radio-cards
@@ -74,8 +78,32 @@ export const postToBlueskyEffectType: Effects.EffectType<
           ></firebot-radio-cards>
       </div>
     </eos-container>
+    <eos-container header="Reply Settings" pad-top="true">
+      <firebot-checkbox
+          label="Send as reply"
+          model="effect.sendAsReply"
+          style="margin: 10px 15px 0px 0px"
+      />
+      <div class="form-group" ng-show="effect.sendAsReply && canInferReplyPostUri">
+          <label for="replyToOption" class="control-label">Reply to:</label>
+          <firebot-radio-cards
+              options="replyToOptions"
+              ng-model="effect.useCustomReplyToPostUri"
+              id="replyToOption"
+              name="replyToOption"
+              grid-columns="2"
+          ></firebot-radio-cards>
+      </div>
+      <firebot-input
+          ng-show="effect.sendAsReply && effect.useCustomReplyToPostUri"
+          input-title="Reply-to Post URI"
+          model="effect.replyToPostUri"
+          placeholder-text="Enter Post AT URI"
+      />
+    </eos-container>
   `,
   optionsController: ($scope) => {
+    console.log("bluesky effect", $scope);
     $scope.replyOptions = [
       {
         value: "everyone",
@@ -135,14 +163,55 @@ export const postToBlueskyEffectType: Effects.EffectType<
       trigger: $scope.trigger,
       triggerMeta: $scope.triggerMeta,
     };
+
+    $scope.replyToOptions = [
+      {
+        value: false,
+        label: "Infer",
+        description: "Infer the post to reply to from the event",
+      },
+      {
+        value: true,
+        label: "Custom",
+        description: "Enter a custom post AT URI to reply to",
+      },
+    ];
+
+    $scope.showUseCustomReplyPostUriToggle = false;
+
+    $scope.canInferReplyPostUri =
+      $scope.trigger == "event" &&
+      [
+        "ebiggz:bluesky:like",
+        "ebiggz:bluesky:reply",
+        "ebiggz:bluesky:quote",
+        "ebiggz:bluesky:mention",
+      ].includes(($scope.triggerMeta as any)?.triggerId);
+
+    if (!$scope.canInferReplyPostUri) {
+      $scope.effect.useCustomReplyToPostUri = true;
+    }
   },
   optionsValidator: (effect) => {
     if (!effect.text?.length) {
       return ["Please enter some text to post!"];
     }
+    if (effect.embedType === "link" && !effect.linkUrl?.length) {
+      return ["Please enter an embed link URL"];
+    }
+    if (effect.embedType === "image" && !effect.imageUrls?.length) {
+      return ["Please enter at least one image URL"];
+    }
+    if (
+      effect.sendAsReply &&
+      effect.useCustomReplyToPostUri &&
+      !effect.replyToPostUri?.length
+    ) {
+      return ["Please enter a reply-to post URI"];
+    }
     return [];
   },
-  onTriggerEvent: async ({ effect }) => {
+  onTriggerEvent: async ({ effect, trigger }) => {
     const [valid, reason] = validateEffect(effect);
     if (!valid) {
       logger.debug(`Unable to run Post To Bluesky effect: ${reason}`, effect);
@@ -154,26 +223,60 @@ export const postToBlueskyEffectType: Effects.EffectType<
     try {
       const threadgate = effect.threadgate ?? "everyone";
 
-      const createdPost = await blueskyIntegration?.bot?.post(
-        {
-          text: effect.text,
-          external: effect.embedType === "link" ? effect.linkUrl : undefined,
-          images:
-            effect.embedType === "image"
-              ? (effect.imageUrls
-                  ?.map((url) => ({ data: url }))
-                  .slice(0, 4) as any)
-              : undefined,
-          threadgate:
-            threadgate !== "everyone"
-              ? { allowFollowing: threadgate === "following" }
-              : undefined,
-        },
-        {
+      const postPayload: PostPayload = {
+        text: effect.text,
+        external: effect.embedType === "link" ? effect.linkUrl : undefined,
+        images:
+          effect.embedType === "image"
+            ? (effect.imageUrls
+                ?.map((url) => ({ data: url }))
+                .slice(0, 4) as any)
+            : undefined,
+        threadgate:
+          threadgate !== "everyone"
+            ? { allowFollowing: threadgate === "following" }
+            : undefined,
+      };
+
+      let createdPost: PostReference | undefined;
+      if (effect.sendAsReply) {
+        const replyToPostAtUri = effect.useCustomReplyToPostUri
+          ? effect.replyToPostUri
+          : (trigger.metadata.eventData.blueskyPostAtUri as string);
+
+        if (!replyToPostAtUri?.length) {
+          logger.error("No post AT URI to reply to");
+          return {
+            success: false,
+          };
+        }
+
+        const replyToPost = await blueskyIntegration?.bot
+          ?.getPost(replyToPostAtUri)
+          .catch(() => {
+            return null as Post;
+          });
+
+        if (!replyToPost) {
+          logger.error(
+            "Unable to fetch post to reply to with AT URI",
+            replyToPostAtUri
+          );
+          return {
+            success: false,
+          };
+        }
+
+        createdPost = await replyToPost.reply(postPayload, {
           resolveFacets: true,
           splitLongPost: true,
-        }
-      );
+        });
+      } else {
+        createdPost = await blueskyIntegration?.bot?.post(postPayload, {
+          resolveFacets: true,
+          splitLongPost: true,
+        });
+      }
 
       return {
         success: true,
