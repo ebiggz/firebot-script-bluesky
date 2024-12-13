@@ -299,13 +299,14 @@ export const postToBlueskyEffectType: Effects.EffectType<
 function formatTextAndGetFacets(
   text: string
 ): [string, Array<BlueSkyRichTextFacet>] {
-  const linkRegex = /\[([\w\s\d]+)\]\((https?:\/\/[\w\d.\/?=#]+)\)/;
+  const linkRegex = /\[(.+?)]\((.+?)\)/;
   let facets: Array<BlueSkyRichTextFacet> = [];
   let output: string = text;
 
   // Get Markdown links
   let match: RegExpExecArray | null = null;
   while ((match = linkRegex.exec(output))) {
+    const encoder = new TextEncoder();
     const [full, label, url] = match;
     const { index } = match;
 
@@ -316,7 +317,7 @@ function formatTextAndGetFacets(
     const facet: BlueSkyRichTextFacet = {
       index: {
         byteStart: index,
-        byteEnd: index + label.length,
+        byteEnd: index + encoder.encode(label).length,
       },
       features: [
         {
