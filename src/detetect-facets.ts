@@ -1,0 +1,217 @@
+// Copyright (c) 2024 Bluesky PBC
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+import type { Bot } from "@skyware/bot";
+import type { AppBskyRichtextFacet, At } from "./types";
+
+const MENTION_REGEX = /(^|\s|\()(@)([a-zA-Z0-9.-]+)(\b)/g;
+const URL_REGEX =
+  /(^|\s|\()((https?:\/\/[\S]+)|((?<domain>[a-z][a-z0-9]*(\.[a-z0-9]+)+)[\S]*))/gim;
+const TRAILING_PUNCTUATION_REGEX = /\p{P}+$/gu;
+/**
+ * `\ufe0f` emoji modifier
+ * `\u00AD\u2060\u200A\u200B\u200C\u200D\u20e2` zero-width spaces (likely incomplete)
+ */
+const TAG_REGEX =
+  /(^|\s)[#＃]((?!\ufe0f)[^\s\u00AD\u2060\u200A\u200B\u200C\u200D\u20e2]*[^\d\s\p{P}\u00AD\u2060\u200A\u200B\u200C\u200D\u20e2]+[^\s\u00AD\u2060\u200A\u200B\u200C\u200D\u20e2]*)?/gu;
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+const asDid = (did: string): At.DID => {
+  if (!did.startsWith("did:")) throw new Error("Invalid DID: " + did);
+  return did as At.DID;
+};
+
+export const utf16IndexToUtf8Index = (text: string, i: number) => {
+  return encoder.encode(text.slice(0, i)).byteLength;
+};
+
+export const utf8IndexToUtf16Index = (text: string, i: number) => {
+  return decoder.decode(encoder.encode(text).slice(0, i + 1)).length - 1;
+};
+
+/**
+ * Options for the {@link detectFacetsWithoutResolution} and {@link detectFacetsWithResolution} functions.
+ */
+export interface DetectFacetsOptions {
+  /** Whether to shorten inline links. */
+  shortenLinks?: boolean | undefined;
+}
+
+/**
+ * This is a modified version of the {@link import("@atproto/api").RichText#detectFacets} function that doesn't use the UnicodeString class.
+ * This allows us to avoid importing `graphemer`, instead using the `Intl.Segmenter` builtin (see {@link graphemeLength}), which saves ~800kB in bundle size (200kB gzipped).
+ *
+ * JS strings are encoded as UTF-16; `utf16IndexToUtf8Index` is used to get UTF-8 byte indices of facets within text.
+ * @param text Text to detect facets in.
+ * @param options Configuration options.
+ */
+export function detectFacetsWithoutResolution(
+  text: string,
+  options?: DetectFacetsOptions
+): { text: string; facets: Array<AppBskyRichtextFacet.Main> } {
+  let match;
+  const facets: Array<AppBskyRichtextFacet.Main> = [];
+  {
+    // mentions
+    const re = MENTION_REGEX;
+    while ((match = re.exec(text))) {
+      const mention = match[3];
+      if (!mention.includes(".")) continue;
+
+      const start = text.indexOf(mention, match.index) - 1;
+      facets.push({
+        index: {
+          byteStart: utf16IndexToUtf8Index(text, start),
+          byteEnd: utf16IndexToUtf8Index(text, start + mention.length + 1),
+        },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#mention",
+            did: mention as never, // must be resolved afterwards
+          },
+        ],
+      });
+    }
+    re.lastIndex = 0;
+  }
+  {
+    // links
+    const re = URL_REGEX;
+    while ((match = re.exec(text))) {
+      let uri = match[2];
+      if (!uri.startsWith("http")) {
+        const domain = match.groups?.domain;
+        if (!domain) {
+          continue;
+        }
+        uri = `https://${uri}`;
+      }
+      const start = text.indexOf(match[2], match.index);
+      const index = { start, end: start + match[2].length };
+      // strip ending puncuation
+      if (/[.,;:!?]$/.test(uri)) {
+        uri = uri.slice(0, -1);
+        index.end--;
+      }
+      if (/[)]$/.test(uri) && !uri.includes("(")) {
+        uri = uri.slice(0, -1);
+        index.end--;
+      }
+
+      if (options?.shortenLinks) {
+        const shortenedUri = toShortUrl(uri);
+        text =
+          text.slice(0, index.start) + shortenedUri + text.slice(index.end);
+        const lengthDifference = uri.length - shortenedUri.length;
+        index.end -= lengthDifference;
+        re.lastIndex -= lengthDifference;
+      }
+
+      facets.push({
+        index: {
+          byteStart: utf16IndexToUtf8Index(text, index.start),
+          byteEnd: utf16IndexToUtf8Index(text, index.end),
+        },
+        features: [{ $type: "app.bsky.richtext.facet#link", uri }],
+      });
+    }
+    re.lastIndex = 0;
+  }
+  {
+    const re = TAG_REGEX;
+    while ((match = re.exec(text))) {
+      let tag = match[2];
+
+      if (!tag) continue;
+
+      // strip ending punctuation and any spaces
+      tag = tag.trim().replace(TRAILING_PUNCTUATION_REGEX, "");
+
+      if (tag.length === 0 || tag.length > 64) continue;
+
+      const index = match.index + match[1].length;
+
+      facets.push({
+        index: {
+          byteStart: utf16IndexToUtf8Index(text, index),
+          byteEnd: utf16IndexToUtf8Index(text, index + 1 + tag.length),
+        },
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag: tag }],
+      });
+    }
+    re.lastIndex = 0;
+  }
+  return { text, facets };
+}
+
+/**
+ * Returns a RichText instance with all facets (mentions, links, tags, etc) resolved.
+ * @param text The text to detect facets in.
+ * @param bot Used to resolve mentions to DIDs.
+ * @param options Configuration options.
+ */
+export async function detectFacetsWithResolution(
+  text: string,
+  bot: Bot,
+  options?: DetectFacetsOptions
+) {
+  const { text: detectedText, facets } = detectFacetsWithoutResolution(
+    text,
+    options
+  );
+  for (const facet of facets) {
+    for (const feature of facet.features) {
+      if (feature.$type === "app.bsky.richtext.facet#mention") {
+        const did = await bot
+          .resolveHandle(feature.did)
+          .catch((_: unknown): undefined => undefined);
+        if (!did) {
+          // Remove facet if mention could not be resolved
+          facet.features.splice(facet.features.indexOf(feature), 1);
+          if (facet.features.length === 0) {
+            facets.splice(facets.indexOf(facet), 1);
+          }
+        } else {
+          feature.did = asDid(did);
+        }
+      }
+    }
+  }
+  return { text: detectedText, facets };
+}
+
+// https://github.com/bluesky-social/social-app/blob/090ac041c30f4ef887e6a2b17aa254d029cba9ce/src/lib/strings/url-helpers.ts#L63
+function toShortUrl(url: string): string {
+  try {
+    const urlp = new URL(url);
+    if (urlp.protocol !== "http:" && urlp.protocol !== "https:") {
+      return url;
+    }
+    const path =
+      (urlp.pathname === "/" ? "" : urlp.pathname) + urlp.search + urlp.hash;
+    if (path.length > 15) {
+      return urlp.host + path.slice(0, 13) + "...";
+    }
+    return urlp.host + path;
+  } catch (e) {
+    return url;
+  }
+}

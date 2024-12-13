@@ -1,14 +1,14 @@
 {
     "compilerOptions": {
-        "outDir": "./dist/",
-        "target": "ES6",
-        "module": "CommonJS",
-        "allowSyntheticDefaultImports": true,
-        "noImplicitAny": true,
-        "sourceMap": true,
-        "moduleResolution": "node",
-        "experimentalDecorators": true,
-        "downlevelIteration": true
+      "outDir": "./dist/",
+      "target": "ES2020",
+      "module": "CommonJS",
+      "allowSyntheticDefaultImports": true,
+      "noImplicitAny": true,
+      "sourceMap": true,
+      "moduleResolution": "node",
+      "experimentalDecorators": true,
+      "downlevelIteration": true
     },
     "include": ["./src/**/*"]
 }
