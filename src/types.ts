@@ -14,19 +14,6 @@ export enum BlueskyEvent {
   Mention = "mention",
 }
 
-export type BlueSkyRichTextFacet = {
-  index: {
-    byteStart: number;
-    byteEnd: number;
-  };
-  features: Array<BlueSkyFacetLinkFeature>;
-};
-
-type BlueSkyFacetLinkFeature = {
-  $type: "app.bsky.richtext.facet#link";
-  uri: string;
-};
-
 type ObjectOmit<T, K extends keyof any> = Omit<T, K>;
 
 /***
