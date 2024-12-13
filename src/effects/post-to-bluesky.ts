@@ -36,70 +36,70 @@ export const postToBlueskyEffectType: Effects.EffectType<
   },
   optionsTemplate: `
     <eos-container header="Text">
-        <firebot-input
-        model="effect.text"
-        use-text-area="true"
-        placeholder-text="Enter text"
-        rows="4"
-        cols="40"
-        />
+      <firebot-input
+          model="effect.text"
+          use-text-area="true"
+          placeholder-text="Enter text"
+          rows="4"
+          cols="40"
+       />
     </eos-container>
     <eos-container header="Embed" pad-top="true">
-        <div class="form-group">
-        <firebot-radio-cards
-            options="embedOptions"
-            ng-model="effect.embedType"
-            id="embedType"
-            name="embedType"
-            grid-columns="3"
-        ></firebot-radio-cards>
-        </div>
-        <div ng-if="effect.embedType === 'link'">
+      <div class="form-group">
+          <firebot-radio-cards
+              options="embedOptions"
+              ng-model="effect.embedType"
+              id="embedType"
+              name="embedType"
+              grid-columns="3"
+          ></firebot-radio-cards>
+      </div>
+      <div ng-if="effect.embedType === 'link'">
         <firebot-input
-        input-title="URL"
-        model="effect.linkUrl"
-        placeholder-text="Enter URL (e.g. your stream link)"
-        menu-position="under"
+            input-title="URL"
+            model="effect.linkUrl"
+            placeholder-text="Enter URL (e.g. your stream link)"
+            menu-position="under"
         />
-        </div>
-        <div ng-if="effect.embedType === 'image'">
+      </div>
+      <div ng-if="effect.embedType === 'image'">
         <editable-list settings="imageUrlSettings" model="effect.imageUrls" />
-        </div>
+      </div>
     </eos-container>
     <eos-container header="Interaction Settings" pad-top="true">
-        <div class="form-group">
-        <label for="allowRepliesFrom" class="control-label">Allow replies from:</label>
-        <firebot-radio-cards
-            options="replyOptions"
-            ng-model="effect.threadgate"
-            id="allowRepliesFrom"
-            name="allowRepliesFrom"
-            grid-columns="1"
-        ></firebot-radio-cards>
-        </div>
+      <div class="form-group">
+          <label for="allowRepliesFrom" class="control-label">Allow replies from:</label>
+          <firebot-radio-cards
+              options="replyOptions"
+              ng-model="effect.threadgate"
+              id="allowRepliesFrom"
+              name="allowRepliesFrom"
+              grid-columns="1"
+          ></firebot-radio-cards>
+      </div>
     </eos-container>
     <eos-container header="Reply Settings" pad-top="true">
-        <firebot-checkbox
-        label="Send as reply"
-        model="effect.sendAsReply"
-        style="margin: 10px 15px 0px 0px"
-        />
-        <div class="form-group" ng-show="effect.sendAsReply && canInferReplyPostUri">
-        <label for="replyToOption" class="control-label">Reply to:</label>
-        <firebot-radio-cards
-            options="replyToOptions"
-            ng-model="effect.useCustomReplyToPostUri"
-            id="replyToOption"
-            name="replyToOption"
-            grid-columns="2"
-        ></firebot-radio-cards>
-        </div>
-        <firebot-input
-        ng-show="effect.sendAsReply && effect.useCustomReplyToPostUri"
-        input-title="Reply-to Post URI"
-        model="effect.replyToPostUri"
-        placeholder-text="Enter Post AT URI"
-        />
+      <firebot-checkbox
+          label="Send as reply"
+          model="effect.sendAsReply"
+          style="margin: 10px 15px 0px 0px"
+      />
+      <div class="form-group" ng-show="effect.sendAsReply && canInferReplyPostUri">
+          <label for="replyToOption" class="control-label">Reply to:</label>
+          <firebot-radio-cards
+              options="replyToOptions"
+              ng-model="effect.useCustomReplyToPostUri"
+              id="replyToOption"
+              name="replyToOption"
+              grid-columns="2"
+          ></firebot-radio-cards>
+      </div>
+      <firebot-input
+          ng-show="effect.sendAsReply && effect.useCustomReplyToPostUri"
+          input-title="Reply-to Post URI"
+          model="effect.replyToPostUri"
+          placeholder-text="Enter Post AT URI"
+      />
     </eos-container>
   `,
   optionsController: ($scope) => {
