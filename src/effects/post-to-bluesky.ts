@@ -1,9 +1,8 @@
-import { Firebot } from "@crowbartools/firebot-custom-scripts-types";
 import { logger } from "../logger";
 import { blueskyIntegration } from "../bluesky-integration";
 import { Effects } from "@crowbartools/firebot-custom-scripts-types/types/effects";
 import { Post, PostPayload, PostReference } from "@skyware/bot";
-import { detectFacetsWithResolution } from "../detetect-facets";
+import { detectFacetsWithResolution } from "../detect-facets";
 
 type PostToBlueskyData = {
   text: string;
