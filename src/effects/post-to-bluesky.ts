@@ -3,6 +3,7 @@ import { logger } from "../logger";
 import { blueskyIntegration } from "../bluesky-integration";
 import { Effects } from "@crowbartools/firebot-custom-scripts-types/types/effects";
 import { Post, PostPayload, PostReference } from "@skyware/bot";
+import { detectFacetsWithResolution } from "../detetect-facets";
 
 type PostToBlueskyData = {
   text: string;
@@ -220,11 +221,27 @@ export const postToBlueskyEffectType: Effects.EffectType<
       };
     }
 
+    if (blueskyIntegration?.bot == null) {
+      logger.error("Bluesky bot not initialized");
+      return {
+        success: false,
+      };
+    }
+
     try {
       const threadgate = effect.threadgate ?? "everyone";
 
+      const { text, facets } = await detectFacetsWithResolution(
+        effect.text,
+        blueskyIntegration.bot,
+        {
+          shortenLinks: true,
+        }
+      );
+
       const postPayload: PostPayload = {
-        text: effect.text,
+        text,
+        facets,
         external: effect.embedType === "link" ? effect.linkUrl : undefined,
         images:
           effect.embedType === "image"
