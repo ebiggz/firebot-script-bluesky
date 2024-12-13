@@ -2,6 +2,7 @@ import { logger } from "../logger";
 import { blueskyIntegration } from "../bluesky-integration";
 import { Effects } from "@crowbartools/firebot-custom-scripts-types/types/effects";
 import { Post, PostPayload, PostReference } from "@skyware/bot";
+import { BlueSkyRichTextFacet } from "../types";
 
 type PostToBlueskyData = {
   text: string;
@@ -295,9 +296,11 @@ export const postToBlueskyEffectType: Effects.EffectType<
   },
 };
 
-function formatTextAndGetFacets(text: string): [string, Array<unknown>] {
+function formatTextAndGetFacets(
+  text: string
+): [string, Array<BlueSkyRichTextFacet>] {
   const linkRegex = /\[([\w\s\d]+)\]\((https?:\/\/[\w\d.\/?=#]+)\)/;
-  let facets: Array<unknown> = [];
+  let facets: Array<BlueSkyRichTextFacet> = [];
   let output: string = text;
 
   // Get Markdown links
@@ -310,7 +313,7 @@ function formatTextAndGetFacets(text: string): [string, Array<unknown>] {
       index + full.length
     )}`;
 
-    const facet = {
+    const facet: BlueSkyRichTextFacet = {
       index: {
         byteStart: index,
         byteEnd: index + label.length,

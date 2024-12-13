@@ -13,3 +13,16 @@ export enum BlueskyEvent {
   Quote = "quote",
   Mention = "mention",
 }
+
+export type BlueSkyRichTextFacet = {
+  index: {
+    byteStart: number;
+    byteEnd: number;
+  };
+  features: Array<BlueSkyFacetLinkFeature>;
+};
+
+type BlueSkyFacetLinkFeature = {
+  $type: "app.bsky.richtext.facet#link";
+  uri: string;
+};
