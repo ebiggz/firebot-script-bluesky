@@ -2,7 +2,7 @@ import { logger } from "../logger";
 import { blueskyIntegration } from "../bluesky-integration";
 import { Effects } from "@crowbartools/firebot-custom-scripts-types/types/effects";
 import { Post, PostPayload, PostReference } from "@skyware/bot";
-import { detectFacetsWithResolution } from "../detetect-facets";
+import { detectFacetsWithResolution } from "../detect-facets";
 
 type PostToBlueskyData = {
   text: string;
@@ -241,8 +241,6 @@ export const postToBlueskyEffectType: Effects.EffectType<
       const postPayload: PostPayload = {
         text,
         facets,
-        text,
-        facets,
         external: effect.embedType === "link" ? effect.linkUrl : undefined,
         images:
           effect.embedType === "image"
@@ -308,43 +306,6 @@ export const postToBlueskyEffectType: Effects.EffectType<
     }
   },
 };
-
-function formatTextAndGetFacets(
-  text: string
-): [string, Array<BlueSkyRichTextFacet>] {
-  const linkRegex = /\[(.+?)]\((.+?)\)/;
-  let facets: Array<BlueSkyRichTextFacet> = [];
-  let output: string = text;
-
-  // Get Markdown links
-  let match: RegExpExecArray | null = null;
-  while ((match = linkRegex.exec(output))) {
-    const [full, label, url] = match;
-    const { index } = match;
-
-    output = `${output.slice(0, index)}${label}${output.slice(
-      index + full.length
-    )}`;
-
-    const facet: BlueSkyRichTextFacet = {
-      index: {
-        byteStart: utf16IndexToUtf8Index(output, index),
-        byteEnd: utf16IndexToUtf8Index(output, index + label.length),
-      },
-      features: [
-        {
-          $type: "app.bsky.richtext.facet#link",
-          uri: url,
-        },
-      ],
-    };
-
-    // should check if there are existing facets that need their positions adjusted if more replacements are added
-    facets.push(facet);
-  }
-
-  return [output, facets];
-}
 
 function validateEffect(
   data: PostToBlueskyData

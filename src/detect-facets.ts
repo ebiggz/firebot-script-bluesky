@@ -24,6 +24,7 @@ const MENTION_REGEX = /(^|\s|\()(@)([a-zA-Z0-9.-]+)(\b)/g;
 const URL_REGEX =
   /(^|\s|\()((https?:\/\/[\S]+)|((?<domain>[a-z][a-z0-9]*(\.[a-z0-9]+)+)[\S]*))/gim;
 const TRAILING_PUNCTUATION_REGEX = /\p{P}+$/gu;
+const MARKDOWN_LINK_REGEX = /\[(.+?)]\((.+?)\)/;
 /**
  * `\ufe0f` emoji modifier
  * `\u00AD\u2060\u200A\u200B\u200C\u200D\u20e2` zero-width spaces (likely incomplete)
@@ -69,6 +70,27 @@ export function detectFacetsWithoutResolution(
 ): { text: string; facets: Array<AppBskyRichtextFacet.Main> } {
   let match;
   const facets: Array<AppBskyRichtextFacet.Main> = [];
+  // Markdown links
+  {
+    const re = MARKDOWN_LINK_REGEX;
+    while ((match = re.exec(text))) {
+      const [full, label, uri] = match;
+      const { index } = match;
+
+      text = `${text.slice(0, index)}${label}${text.slice(
+        index + full.length
+      )}`;
+
+      facets.push({
+        index: {
+          byteStart: utf16IndexToUtf8Index(text, index),
+          byteEnd: utf16IndexToUtf8Index(text, index + label.length),
+        },
+        features: [{ $type: "app.bsky.richtext.facet#link", uri }],
+      });
+    }
+  }
+  // If more replacements are added, be mindful that previous facets may need their start/end bytes shifted
   {
     // mentions
     const re = MENTION_REGEX;
@@ -154,7 +176,7 @@ export function detectFacetsWithoutResolution(
           byteStart: utf16IndexToUtf8Index(text, index),
           byteEnd: utf16IndexToUtf8Index(text, index + 1 + tag.length),
         },
-        features: [{ $type: "app.bsky.richtext.facet#tag", tag: tag }],
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag }],
       });
     }
     re.lastIndex = 0;
