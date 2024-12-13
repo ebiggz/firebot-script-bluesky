@@ -2,7 +2,7 @@ const path = require('path');
 const { randomBytes } = require('crypto');
 const { appendFileSync, readFileSync } = require('fs');
 
-const root = path.resolve(__dirname, '../../');
+const root = path.resolve(__dirname, '../');
 
 const outfile = process.argv.slice(2).join(' ');
 const output = (key, value) => {
