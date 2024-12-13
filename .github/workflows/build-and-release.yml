@@ -1,0 +1,93 @@
+name: Build and Draft Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: main
+
+jobs:
+
+  checkversion:
+    name: Check if version has corrosponding tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      scriptname: ${{ steps.getinfo.outputs.scriptname }}
+      dobuild: ${{ steps.dobuild.outputs.dobuild }}
+
+    steps:
+      - name: Checkout crowbartools/firebot
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read package.json
+        id: package
+        uses: gregoranders/nodejs-project-info@v0.0.21
+
+      - name: Retrieve package.json version
+        id: version
+        run: echo "version=${{ steps.package.outputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Get script name
+        id: getinfo
+        run: node ./scripts/get-info.js $GITHUB_OUTPUT
+
+      - name: 'Check: package version has corresponding git tag'
+        id: dobuild
+        shell: bash
+        run: echo dobuild=$(git show-ref --tags --verify --quiet -- "refs/tags/v${{ steps.version.outputs.version }}" && echo 0 || echo 1) >> $GITHUB_OUTPUT
+
+  build:
+    name: 'Build'
+    needs: [checkversion]
+    if: needs.checkversion.outputs.dobuild == 1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.14.0'
+
+      - name: Install correct npm version
+        run: npm install -g npm@10.8.1
+
+      - name: Install Project Dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: ./dist/
+
+  draft:
+    name: Draft Github Release
+    needs: [checkversion, build]
+    if: needs.checkversion.outputs.dobuild == 1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./bundles/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          token: ${{ env.GITHUB_TOKEN }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          tag_name: v${{ needs.checkversion.outputs.version }}
+          name: Release v${{ needs.checkversion.outputs.version }}
+          files: |
+            ./bundles/dist/${{ needs.checkversion.outputs.scriptname }}.js
