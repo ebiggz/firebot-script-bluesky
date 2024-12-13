@@ -3,6 +3,7 @@ import { blueskyIntegration } from "../bluesky-integration";
 import { Effects } from "@crowbartools/firebot-custom-scripts-types/types/effects";
 import { Post, PostPayload, PostReference } from "@skyware/bot";
 import { BlueSkyRichTextFacet } from "../types";
+import { utf16IndexToUtf8Index } from "@skyware/bot/dist/richtext/detectFacets";
 
 type PostToBlueskyData = {
   text: string;
@@ -299,7 +300,6 @@ export const postToBlueskyEffectType: Effects.EffectType<
 function formatTextAndGetFacets(
   text: string
 ): [string, Array<BlueSkyRichTextFacet>] {
-  const encoder = new TextEncoder();
   const linkRegex = /\[(.+?)]\((.+?)\)/;
   let facets: Array<BlueSkyRichTextFacet> = [];
   let output: string = text;
@@ -316,8 +316,8 @@ function formatTextAndGetFacets(
 
     const facet: BlueSkyRichTextFacet = {
       index: {
-        byteStart: index,
-        byteEnd: index + encoder.encode(label).length,
+        byteStart: utf16IndexToUtf8Index(output, index),
+        byteEnd: utf16IndexToUtf8Index(output, index + label.length),
       },
       features: [
         {
