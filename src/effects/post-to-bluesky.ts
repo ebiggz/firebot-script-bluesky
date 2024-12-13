@@ -285,12 +285,10 @@ export const postToBlueskyEffectType: Effects.EffectType<
         }
 
         createdPost = await replyToPost.reply(postPayload, {
-          resolveFacets: true,
           splitLongPost: true,
         });
       } else {
         createdPost = await blueskyIntegration?.bot?.post(postPayload, {
-          resolveFacets: true,
           splitLongPost: true,
         });
       }
