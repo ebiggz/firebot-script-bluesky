@@ -2,21 +2,20 @@ import {
   Firebot,
   Integration,
 } from "@crowbartools/firebot-custom-scripts-types";
-import { postToBlueskyEffectType } from "./effects/post-to-bluesky";
-import { initLogger } from "./logger";
-import {
-  BLUESKY_EVENT_SOURCE,
-  BLUESKY_INTEGRATION_DEFINITION,
-  BLUESKY_INTEGRATION_ID,
-} from "./constants";
-import { initBlueskyIntegration } from "./bluesky-integration";
-import { BlueskyEvent, BlueskyIntegrationSettings } from "./types";
 import {
   ReplaceVariableFactory,
   VariableConfig,
 } from "@crowbartools/firebot-custom-scripts-types/types/modules/replace-variable-factory";
 import { ReplaceVariableManager } from "@crowbartools/firebot-custom-scripts-types/types/modules/replace-variable-manager";
-import { likePostOnBlueskyEffectType } from "./effects/like-post-on-bluesky";
+import { initBlueskyIntegration } from "./bluesky-integration";
+import {
+  BLUESKY_EVENT_SOURCE,
+  BLUESKY_INTEGRATION_DEFINITION,
+  BLUESKY_INTEGRATION_ID,
+} from "./constants";
+import { blueskyEffectTypes } from "./effects";
+import { initLogger } from "./logger";
+import { BlueskyEvent, BlueskyIntegrationSettings } from "./types";
 
 const script: Firebot.CustomScript = {
   getScriptManifest: () => {
@@ -49,13 +48,9 @@ const script: Firebot.CustomScript = {
 
     runRequest.modules.integrationManager.registerIntegration(integration);
 
-    runRequest.modules.effectManager.registerEffect(
-      postToBlueskyEffectType as any
-    );
-
-    runRequest.modules.effectManager.registerEffect(
-      likePostOnBlueskyEffectType as any
-    );
+    for (const effectType of blueskyEffectTypes) {
+      runRequest.modules.effectManager.registerEffect(effectType as any);
+    }
   },
 };
 
