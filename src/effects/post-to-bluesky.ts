@@ -1,8 +1,8 @@
-import { logger } from "../logger";
-import { blueskyIntegration } from "../bluesky-integration";
 import { Effects } from "@crowbartools/firebot-custom-scripts-types/types/effects";
 import { Post, PostPayload, PostReference } from "@skyware/bot";
+import { blueskyIntegration } from "../bluesky-integration";
 import { detectFacetsWithResolution } from "../detect-facets";
+import { logger } from "../logger";
 
 type PostToBlueskyData = {
   text: string;
@@ -42,6 +42,7 @@ export const postToBlueskyEffectType: Effects.EffectType<
           placeholder-text="Enter text"
           rows="4"
           cols="40"
+          menu-position="under"
        />
     </eos-container>
     <eos-container header="Embed" pad-top="true">
@@ -99,6 +100,7 @@ export const postToBlueskyEffectType: Effects.EffectType<
           input-title="Reply-to Post URI"
           model="effect.replyToPostUri"
           placeholder-text="Enter Post AT URI"
+          menu-position="over"
       />
     </eos-container>
   `,
