@@ -100,7 +100,6 @@ export const postToBlueskyEffectType: Effects.EffectType<
           input-title="Reply-to Post URI"
           model="effect.replyToPostUri"
           placeholder-text="Enter Post AT URI"
-          menu-position="over"
       />
     </eos-container>
   `,
