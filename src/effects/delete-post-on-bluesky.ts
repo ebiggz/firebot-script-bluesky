@@ -21,6 +21,7 @@ export const deletePostOnBlueskyEffectType: Firebot.EffectType<DeletePostOnBlues
         <firebot-input
           model="effect.uri"
           placeholder-text="URI of post to delete (must be from your account)"
+          menu-position="under"
         />
       </eos-container>
     `,
