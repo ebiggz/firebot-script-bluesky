@@ -8,7 +8,7 @@ on:
 jobs:
 
   checkversion:
-    name: Check if version has corrosponding tag
+    name: Check if version has corresponding tag
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -62,7 +62,7 @@ jobs:
         run: npm run build
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: ./dist/
