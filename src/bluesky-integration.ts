@@ -66,7 +66,7 @@ class BlueskyIntegration
 
     const username = settings?.account?.username;
     const appPassword = settings?.account?.appPassword;
-    const service = settings?.account?.service;
+    const service = settings?.account?.service ?? "https://bsky.social";
 
     if (!username || !appPassword || !service) {
       logger.warn("Bluesky Integration account login is missing");
