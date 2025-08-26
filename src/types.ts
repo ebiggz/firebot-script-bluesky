@@ -2,6 +2,7 @@ export type BlueskyIntegrationSettings = {
   account: {
     username: string;
     appPassword: string;
+    service: string;
   };
 };
 

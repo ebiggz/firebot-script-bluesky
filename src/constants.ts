@@ -38,6 +38,16 @@ export const BLUESKY_INTEGRATION_DEFINITION: IntegrationDefinition<BlueskyIntegr
               required: true,
             },
           },
+          service: {
+            type: "string",
+            default: "https://bsky.social",
+            title: "Bluesky Service",
+            description:
+              "Your Bluesky PDS. For most users, the default is fine. You'll most likely know if you need to change this",
+            validation: {
+                required: true,
+            },
+          },
         },
       },
     },

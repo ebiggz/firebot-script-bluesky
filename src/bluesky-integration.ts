@@ -66,14 +66,15 @@ class BlueskyIntegration
 
     const username = settings?.account?.username;
     const appPassword = settings?.account?.appPassword;
+    const service = settings?.account?.service;
 
-    if (!username || !appPassword) {
+    if (!username || !appPassword || !service) {
       logger.warn("Bluesky Integration account login is missing");
       return;
     }
 
     try {
-      this.bot = new BlueskyBot();
+      this.bot = new BlueskyBot({service: service});
 
       await this.bot.login({ identifier: username, password: appPassword });
     } catch (error) {
