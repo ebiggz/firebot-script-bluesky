@@ -2,6 +2,7 @@ import {
   IntegrationController,
   IntegrationData,
   IntegrationEvents,
+  UserAccount,
 } from "@crowbartools/firebot-custom-scripts-types";
 import { EventManager } from "@crowbartools/firebot-custom-scripts-types/types/modules/event-manager";
 import { TypedEmitter } from "tiny-typed-emitter";
@@ -26,28 +27,31 @@ class BlueskyIntegration
 
   public bot: BlueskyBot | undefined;
 
-  constructor(private eventManager: EventManager) {
+  constructor(
+    private eventManager: EventManager,
+    private streamerAccount: UserAccount,
+  ) {
     super();
   }
 
   init(
     linked: boolean,
-    integrationData: IntegrationData<BlueskyIntegrationSettings>
+    integrationData: IntegrationData<BlueskyIntegrationSettings>,
   ): void | PromiseLike<void> {
     logger.info(
       "Bluesky Integration Initialized",
-      integrationData.userSettings?.account?.username
+      integrationData.userSettings?.account?.username,
     );
 
     this.initBlueskyBot(integrationData.userSettings);
   }
 
   onUserSettingsUpdate?(
-    integrationData: IntegrationData<BlueskyIntegrationSettings>
+    integrationData: IntegrationData<BlueskyIntegrationSettings>,
   ): void | PromiseLike<void> {
     logger.info(
       "Bluesky Integration settings updated",
-      integrationData.userSettings?.account?.username
+      integrationData.userSettings?.account?.username,
     );
 
     this.initBlueskyBot(integrationData.userSettings);
@@ -74,7 +78,7 @@ class BlueskyIntegration
     }
 
     try {
-      this.bot = new BlueskyBot({service: service});
+      this.bot = new BlueskyBot({ service: service });
 
       await this.bot.login({ identifier: username, password: appPassword });
     } catch (error) {
@@ -100,7 +104,7 @@ class BlueskyIntegration
         BlueskyEvent.Follow,
         {
           ...this.getUserProfileMetadata(event.user, "blueskyUser"),
-        }
+        },
       );
     });
 
@@ -117,7 +121,7 @@ class BlueskyIntegration
         {
           ...this.getUserProfileMetadata(event.user, "blueskyUser"),
           ...this.getPostMetadata(event.subject, "blueskyPost"),
-        }
+        },
       );
     });
 
@@ -131,7 +135,7 @@ class BlueskyIntegration
         {
           ...this.getPostMetadata(event, "blueskyPost"),
           ...(parent ? this.getPostMetadata(parent, "blueskyParentPost") : {}),
-        }
+        },
       );
     });
 
@@ -144,7 +148,7 @@ class BlueskyIntegration
         {
           ...this.getUserProfileMetadata(event.user, "blueskyUser"),
           ...this.getPostMetadata(event.post, "blueskyPost"),
-        }
+        },
       );
     });
 
@@ -154,7 +158,7 @@ class BlueskyIntegration
         BlueskyEvent.Mention,
         {
           ...this.getPostMetadata(event, "blueskyPost"),
-        }
+        },
       );
     });
 
@@ -175,7 +179,7 @@ class BlueskyIntegration
           ...(quotedPost
             ? this.getPostMetadata(quotedPost, "blueskyQuotedPost")
             : {}),
-        }
+        },
       );
     });
   }
@@ -204,12 +208,117 @@ class BlueskyIntegration
         : {}),
     };
   }
+
+  async setLiveStatus(durationMinutes: number): Promise<boolean> {
+    if (!this.bot || !this.connected) {
+      logger.error("Cannot set live status: not connected to Bluesky");
+      return false;
+    }
+
+    if (!this.streamerAccount?.loggedIn) {
+      logger.error("Cannot set live status: streamer account not logged in");
+      return false;
+    }
+
+    try {
+      let thumbBlob:
+        | { ref: { $link: string }; mimeType: string; size: number }
+        | undefined;
+
+      // Upload the avatar as thumbnail if available
+      const avatarUrl = this.streamerAccount?.avatar;
+      if (avatarUrl) {
+        try {
+          const avatarResponse = await fetch(avatarUrl);
+          if (avatarResponse.ok) {
+            const avatarArrayBuffer = await avatarResponse.arrayBuffer();
+            const contentType =
+              avatarResponse.headers.get("content-type") ?? "image/jpeg";
+            // Use type assertion since the call method is inherited but not properly typed
+            const uploadResponse = await (this.bot.agent as any).call(
+              "com.atproto.repo.uploadBlob",
+              {
+                data: new Uint8Array(avatarArrayBuffer),
+                headers: { "content-type": contentType },
+              },
+            );
+            if (uploadResponse?.data?.blob) {
+              thumbBlob = uploadResponse.data.blob;
+            }
+          }
+        } catch (uploadError) {
+          logger.warn(
+            "Failed to upload avatar for live status thumbnail",
+            uploadError,
+          );
+        }
+      }
+
+      // Build the embed if we have a thumbnail
+      const embed = thumbBlob
+        ? {
+            $type: "app.bsky.embed.external",
+            external: {
+              $type: "app.bsky.embed.external#external",
+              title: "Twitch",
+              description: `${this.streamerAccount?.displayName ?? this.streamerAccount?.username ?? "Streamer"} is live on Twitch!`,
+              uri: `https://www.twitch.tv/${this.streamerAccount?.username ?? ""}`,
+              thumb: {
+                $type: "blob",
+                ref: thumbBlob.ref,
+                mimeType: thumbBlob.mimeType,
+                size: thumbBlob.size,
+              },
+            },
+          }
+        : undefined;
+
+      await this.bot.putRecord(
+        "app.bsky.actor.status",
+        {
+          status: "app.bsky.actor.status#live",
+          durationMinutes: durationMinutes,
+          ...(embed ? { embed } : {}),
+        },
+        "self",
+      );
+
+      logger.info(`Set live status on Bluesky for ${durationMinutes} minutes`);
+      return true;
+    } catch (error) {
+      logger.error("Error setting live status on Bluesky", error);
+      return false;
+    }
+  }
+
+  async clearLiveStatus(): Promise<boolean> {
+    if (!this.bot || !this.connected) {
+      logger.error("Cannot clear live status: not connected to Bluesky");
+      return false;
+    }
+
+    try {
+      const did = this.bot.profile.did;
+      const statusUri = `at://${did}/app.bsky.actor.status/self`;
+
+      await this.bot.deleteRecord(statusUri);
+
+      logger.info("Cleared live status on Bluesky");
+      return true;
+    } catch (error) {
+      logger.error("Error clearing live status on Bluesky", error);
+      return false;
+    }
+  }
 }
 
 export let blueskyIntegration: BlueskyIntegration | undefined;
 
-export function initBlueskyIntegration(eventManager: EventManager) {
-  blueskyIntegration = new BlueskyIntegration(eventManager);
+export function initBlueskyIntegration(
+  eventManager: EventManager,
+  streamerAccount: UserAccount,
+) {
+  blueskyIntegration = new BlueskyIntegration(eventManager, streamerAccount);
 
   return blueskyIntegration;
 }

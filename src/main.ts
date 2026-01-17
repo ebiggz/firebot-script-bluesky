@@ -24,7 +24,7 @@ const script: Firebot.CustomScript = {
       description:
         "Enables posting to Bluesky and adds events for follows, likes, replies, and reposts.\n\nOnce installed, head to the Integrations tab in Firebot settings to configure your Bluesky account.",
       author: "ebiggz",
-      version: "2.3",
+      version: "2.4",
       firebotVersion: "5",
     };
   },
@@ -38,12 +38,15 @@ const script: Firebot.CustomScript = {
 
     registerBlueskyVariables(
       runRequest.modules.replaceVariableFactory,
-      runRequest.modules.replaceVariableManager
+      runRequest.modules.replaceVariableManager,
     );
 
     const integration: Integration<BlueskyIntegrationSettings> = {
       definition: BLUESKY_INTEGRATION_DEFINITION,
-      integration: initBlueskyIntegration(runRequest.modules.eventManager),
+      integration: initBlueskyIntegration(
+        runRequest.modules.eventManager,
+        runRequest.firebot.accounts.streamer,
+      ),
     };
 
     runRequest.modules.integrationManager.registerIntegration(integration);
@@ -56,13 +59,13 @@ const script: Firebot.CustomScript = {
 
 function registerBlueskyVariables(
   replaceVariableFactory: ReplaceVariableFactory,
-  replaceVariableManager: ReplaceVariableManager
+  replaceVariableManager: ReplaceVariableManager,
 ) {
   const blueskyVariables = [
     ...buildBlueskyProfileVariables(
       "blueskyUser",
       [BlueskyEvent.Follow, BlueskyEvent.Like, BlueskyEvent.Repost],
-      replaceVariableFactory
+      replaceVariableFactory,
     ),
     ...buildBlueskyPostVariables(
       "blueskyPost",
@@ -73,17 +76,17 @@ function registerBlueskyVariables(
         BlueskyEvent.Mention,
         BlueskyEvent.Quote,
       ],
-      replaceVariableFactory
+      replaceVariableFactory,
     ),
     ...buildBlueskyPostVariables(
       "blueskyParentPost",
       [BlueskyEvent.Reply],
-      replaceVariableFactory
+      replaceVariableFactory,
     ),
     ...buildBlueskyPostVariables(
       "blueskyQuotedPost",
       [BlueskyEvent.Quote],
-      replaceVariableFactory
+      replaceVariableFactory,
     ),
   ];
 
@@ -95,7 +98,7 @@ function registerBlueskyVariables(
 function buildBlueskyProfileVariables(
   prefix: string,
   events: BlueskyEvent[],
-  replaceVariableFactory: ReplaceVariableFactory
+  replaceVariableFactory: ReplaceVariableFactory,
 ) {
   const profileProperties: [property: string, description: string][] = [
     ["Handle", "The user's handle"],
@@ -107,15 +110,15 @@ function buildBlueskyProfileVariables(
   ];
   return profileProperties.map(([property, description]) =>
     replaceVariableFactory.createEventDataVariable(
-      buildBlueskyVariable(`${prefix}${property}`, description, events)
-    )
+      buildBlueskyVariable(`${prefix}${property}`, description, events),
+    ),
   );
 }
 
 function buildBlueskyPostVariables(
   prefix: string,
   events: BlueskyEvent[],
-  replaceVariableFactory: ReplaceVariableFactory
+  replaceVariableFactory: ReplaceVariableFactory,
 ) {
   const postProperties: [property: string, description: string][] = [
     ["Text", "The post's text"],
@@ -124,13 +127,13 @@ function buildBlueskyPostVariables(
   return [
     ...postProperties.map(([property, description]) =>
       replaceVariableFactory.createEventDataVariable(
-        buildBlueskyVariable(`${prefix}${property}`, description, events)
-      )
+        buildBlueskyVariable(`${prefix}${property}`, description, events),
+      ),
     ),
     ...buildBlueskyProfileVariables(
       `${prefix}Author`,
       events,
-      replaceVariableFactory
+      replaceVariableFactory,
     ),
   ];
 }
@@ -138,7 +141,7 @@ function buildBlueskyPostVariables(
 function buildBlueskyVariable(
   eventProperty: string,
   description: string,
-  events: BlueskyEvent[]
+  events: BlueskyEvent[],
 ): VariableConfig {
   return {
     handle: eventProperty,
