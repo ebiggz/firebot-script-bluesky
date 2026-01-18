@@ -1,8 +1,13 @@
+import { Profile } from "@skyware/bot";
+
 export type BlueskyIntegrationSettings = {
   account: {
     username: string;
     appPassword: string;
     service: string;
+  };
+  options?: {
+    automaticallySyncLiveStatusWhenStreaming?: boolean;
   };
 };
 
@@ -46,6 +51,60 @@ export declare namespace At {
     };
     size: number;
   }
+
+  /** External embed in a status record */
+  interface StatusRecordEmbedExternal {
+    $type: "app.bsky.embed.external#external";
+    description: string;
+    thumb?: Blob;
+    title: string;
+    uri: string;
+  }
+
+  /** Embed object within a status record */
+  interface StatusRecordEmbed {
+    $type: "app.bsky.embed.external";
+    external: StatusRecordEmbedExternal;
+  }
+
+  /** The raw status record */
+  interface StatusRecord {
+    $type: "app.bsky.actor.status";
+    createdAt: string;
+    durationMinutes?: number;
+    embed?: StatusRecordEmbed;
+    status: string;
+  }
+
+  /** External view in a status embed */
+  interface StatusEmbedExternalView {
+    uri: string;
+    title: string;
+    description: string;
+    thumb?: string;
+  }
+
+  /** View embed object for a status */
+  interface StatusEmbedView {
+    $type: "app.bsky.embed.external#view";
+    external: StatusEmbedExternalView;
+  }
+
+  /** Profile status object */
+  interface ProfileStatus {
+    uri: Uri;
+    cid: CID;
+    record: StatusRecord;
+    status: string;
+    embed?: StatusEmbedView;
+    expiresAt?: string;
+    isActive: boolean;
+    isDisabled: boolean;
+  }
+
+  interface ProfileWithStatus extends Profile {
+    status?: ProfileStatus;
+  }
 }
 
 /** Handles type branding in objects */
@@ -56,13 +115,13 @@ export declare namespace Brand {
   type GetType<
     T extends {
       [Type]?: string;
-    }
+    },
   > = NonNullable<T[typeof Type]>;
   /** Creates a union of objects where it's discriminated by `$type` field. */
   type Union<
     T extends {
       [Type]?: string;
-    }
+    },
   > = T extends any
     ? T & {
         $type: GetType<T>;
@@ -72,7 +131,7 @@ export declare namespace Brand {
   type Omit<
     T extends {
       [Type]?: string;
-    }
+    },
   > = ObjectOmit<T, typeof Type>;
 }
 

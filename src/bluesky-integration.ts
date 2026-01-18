@@ -15,7 +15,30 @@ import {
 } from "@skyware/bot";
 import { logger } from "./logger";
 import { BLUESKY_INTEGRATION_ID } from "./constants";
-import { BlueskyEvent, BlueskyIntegrationSettings } from "./types";
+import { At, BlueskyEvent, BlueskyIntegrationSettings } from "./types";
+import { streamChecker } from "./stream-checker";
+import { asIdentifier } from "@skyware/bot/dist/util/lexicon";
+
+/**
+ * Event handler types for BlueskyBot events.
+ * These match the listener signatures from BlueskyBot.on() overloads.
+ */
+type FollowEventHandler = (event: { user: Profile; uri: string }) => void;
+type LikeEventHandler = (event: {
+  subject: Post | FeedGenerator | Labeler;
+  user: Profile;
+  uri: string;
+}) => void;
+type ReplyEventHandler = (post: Post) => void;
+type RepostEventHandler = (event: {
+  post: Post;
+  user: Profile;
+  uri: string;
+}) => void;
+type MentionEventHandler = (post: Post) => void;
+type QuoteEventHandler = (post: Post) => void;
+
+const FOUR_HOURS_IN_MINUTES = 4 * 60;
 
 class IntegrationEventEmitter extends TypedEmitter<IntegrationEvents> {}
 
@@ -24,6 +47,8 @@ class BlueskyIntegration
   implements IntegrationController<BlueskyIntegrationSettings>
 {
   connected = false;
+
+  isAutomaticallySyncingLiveStatus = false;
 
   public bot: BlueskyBot | undefined;
 
@@ -48,7 +73,7 @@ class BlueskyIntegration
 
   onUserSettingsUpdate?(
     integrationData: IntegrationData<BlueskyIntegrationSettings>,
-  ): void | PromiseLike<void> {
+  ) {
     logger.info(
       "Bluesky Integration settings updated",
       integrationData.userSettings?.account?.username,
@@ -60,13 +85,11 @@ class BlueskyIntegration
   private async initBlueskyBot(settings?: BlueskyIntegrationSettings) {
     if (this.bot) {
       try {
-        this.bot.removeAllListeners();
+        streamChecker.removeAllListeners();
       } catch (error) {
-        logger.error("Error removing Bluesky bot listeners", error);
+        logger.warn("Error removing stream checker listeners", error);
       }
     }
-
-    logger.info("initBlueskyBot");
 
     const username = settings?.account?.username;
     const appPassword = settings?.account?.appPassword;
@@ -96,7 +119,7 @@ class BlueskyIntegration
       //   this.emit("connected", BLUESKY_INTEGRATION_ID);
     }
 
-    this.bot.on("follow", (event) => {
+    const followListener: FollowEventHandler = (event) => {
       logger.info("Bluesky follow event", event.user.handle);
 
       this.eventManager.triggerEvent(
@@ -106,9 +129,12 @@ class BlueskyIntegration
           ...this.getUserProfileMetadata(event.user, "blueskyUser"),
         },
       );
-    });
+    };
 
-    this.bot.on("like", (event) => {
+    this.bot.removeListener("follow", followListener);
+    this.bot.on("follow", followListener);
+
+    const likeListener: LikeEventHandler = (event) => {
       logger.info("Bluesky like event", event.user.handle, event.subject.uri);
 
       if (!this.isPost(event.subject)) {
@@ -123,23 +149,29 @@ class BlueskyIntegration
           ...this.getPostMetadata(event.subject, "blueskyPost"),
         },
       );
-    });
+    };
 
-    this.bot.on("reply", async (event) => {
-      logger.info("Bluesky reply event", event.author.handle, event.text);
+    this.bot.removeListener("like", likeListener);
+    this.bot.on("like", likeListener);
 
-      const parent = await event.fetchParent();
+    const replyListener: ReplyEventHandler = async (post) => {
+      logger.info("Bluesky reply event", post.author.handle, post.text);
+
+      const parent = await post.fetchParent();
       this.eventManager.triggerEvent(
         BLUESKY_INTEGRATION_ID,
         BlueskyEvent.Reply,
         {
-          ...this.getPostMetadata(event, "blueskyPost"),
+          ...this.getPostMetadata(post, "blueskyPost"),
           ...(parent ? this.getPostMetadata(parent, "blueskyParentPost") : {}),
         },
       );
-    });
+    };
 
-    this.bot.on("repost", (event) => {
+    this.bot.removeListener("reply", replyListener);
+    this.bot.on("reply", replyListener);
+
+    const repostListener: RepostEventHandler = (event) => {
       logger.info("Bluesky repost event", event.user.handle);
 
       this.eventManager.triggerEvent(
@@ -150,38 +182,69 @@ class BlueskyIntegration
           ...this.getPostMetadata(event.post, "blueskyPost"),
         },
       );
-    });
+    };
 
-    this.bot.on("mention", (event) => {
+    this.bot.removeListener("repost", repostListener);
+    this.bot.on("repost", repostListener);
+
+    const mentionListener: MentionEventHandler = (post) => {
       this.eventManager.triggerEvent(
         BLUESKY_INTEGRATION_ID,
         BlueskyEvent.Mention,
         {
-          ...this.getPostMetadata(event, "blueskyPost"),
+          ...this.getPostMetadata(post, "blueskyPost"),
         },
       );
-    });
+    };
 
-    this.bot.on("quote", async (event) => {
-      logger.info("Bluesky quote event", event.author.handle, event.text);
+    this.bot.removeListener("mention", mentionListener);
+    this.bot.on("mention", mentionListener);
 
-      if (!event.embed?.isRecord()) {
+    const quoteListener: QuoteEventHandler = async (post) => {
+      logger.info("Bluesky quote event", post.author.handle, post.text);
+
+      if (!post.embed?.isRecord()) {
         return;
       }
 
-      const quotedPost = await this.bot.getPost(event.embed.record.uri);
+      const quotedPost = await this.bot.getPost(post.embed.record.uri);
 
       this.eventManager.triggerEvent(
         BLUESKY_INTEGRATION_ID,
         BlueskyEvent.Quote,
         {
-          ...this.getPostMetadata(event, "blueskyPost"),
+          ...this.getPostMetadata(post, "blueskyPost"),
           ...(quotedPost
             ? this.getPostMetadata(quotedPost, "blueskyQuotedPost")
             : {}),
         },
       );
-    });
+    };
+
+    this.bot.removeListener("quote", quoteListener);
+    this.bot.on("quote", quoteListener);
+
+    this.isAutomaticallySyncingLiveStatus =
+      settings?.options?.automaticallySyncLiveStatusWhenStreaming ?? false;
+
+    if (this.isAutomaticallySyncingLiveStatus) {
+      const isLiveOnTwitch = streamChecker.isLive;
+      await this.handleTwitchLiveStatus(isLiveOnTwitch);
+
+      streamChecker.on("liveStatusChanged", async (isLiveOnTwitch) => {
+        await this.handleTwitchLiveStatus(isLiveOnTwitch);
+      });
+    }
+  }
+
+  private async handleTwitchLiveStatus(isLiveOnTwitch: boolean) {
+    const isLiveOnBluesky = await this.isLiveStatusActive();
+
+    if (isLiveOnTwitch && !isLiveOnBluesky) {
+      await this.setLiveStatus(FOUR_HOURS_IN_MINUTES);
+    } else if (!isLiveOnTwitch && isLiveOnBluesky) {
+      await this.clearLiveStatus();
+    }
   }
 
   private isPost(subject?: Post | FeedGenerator | Labeler): subject is Post {
@@ -289,6 +352,38 @@ class BlueskyIntegration
       logger.error("Error setting live status on Bluesky", error);
       return false;
     }
+  }
+
+  async getLiveStatus(): Promise<At.ProfileStatus | null> {
+    if (!this.bot || !this.connected) {
+      logger.error("Cannot get live status: not connected to Bluesky");
+      return null;
+    }
+
+    const profileView: At.ProfileWithStatus = await this.bot.agent.get(
+      "app.bsky.actor.getProfile",
+      {
+        params: { actor: asIdentifier(this.bot.profile.did) },
+      },
+    );
+
+    return profileView?.status ?? null;
+  }
+
+  async isLiveStatusActive(): Promise<boolean> {
+    const liveStatus = await this.getLiveStatus();
+    if (!liveStatus) {
+      return false;
+    }
+
+    let hasExpired = true;
+    if (liveStatus.expiresAt) {
+      const expiresAt = new Date(liveStatus.expiresAt).getTime();
+      const now = Date.now();
+      hasExpired = now >= expiresAt;
+    }
+
+    return liveStatus.isActive && !liveStatus.isDisabled && !hasExpired;
   }
 
   async clearLiveStatus(): Promise<boolean> {

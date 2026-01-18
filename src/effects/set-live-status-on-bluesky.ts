@@ -20,17 +20,25 @@ export const setLiveStatusOnBlueskyEffectType: Firebot.EffectType<SetLiveStatusO
         <firebot-input
           model="effect.durationMinutes"
           input-type="number"
-          placeholder-text="180"
+          placeholder-text="240"
           menu-position="under"
         />
         <p class="muted" style="margin-top: 5px;">
           Your live status will be automatically cleared after this time.
         </p>
       </eos-container>
+
+      <eos-container>
+        <div class="effect-info alert alert-warning">
+            Please note that Bluesky has a limitation of <b>4 hours</b> (240 minutes) for live status duration.
+            <br /><br />
+            If your duration value exceeds this, it will be capped at <b>4 hours</b>.
+        </div>
+    </eos-container>
     `,
     optionsController: ($scope) => {
       if ($scope.effect.durationMinutes == null) {
-        $scope.effect.durationMinutes = 180; // Default to 3 hours
+        $scope.effect.durationMinutes = 240; // Default to 4 hours
       }
     },
     optionsValidator: (effect) => {
@@ -42,8 +50,11 @@ export const setLiveStatusOnBlueskyEffectType: Firebot.EffectType<SetLiveStatusO
     },
     onTriggerEvent: async ({ effect }) => {
       try {
-        const duration = effect.durationMinutes ?? 180;
-        const success = await blueskyIntegration?.setLiveStatus(duration);
+        const duration = effect.durationMinutes ?? 240;
+
+        const durationNumber = Number(duration);
+
+        const success = await blueskyIntegration?.setLiveStatus(durationNumber);
 
         return {
           success: success ?? false,

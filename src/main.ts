@@ -7,7 +7,10 @@ import {
   VariableConfig,
 } from "@crowbartools/firebot-custom-scripts-types/types/modules/replace-variable-factory";
 import { ReplaceVariableManager } from "@crowbartools/firebot-custom-scripts-types/types/modules/replace-variable-manager";
-import { initBlueskyIntegration } from "./bluesky-integration";
+import {
+  blueskyIntegration,
+  initBlueskyIntegration,
+} from "./bluesky-integration";
 import {
   BLUESKY_EVENT_SOURCE,
   BLUESKY_INTEGRATION_DEFINITION,
@@ -16,6 +19,7 @@ import {
 import { blueskyEffectTypes } from "./effects";
 import { initLogger } from "./logger";
 import { BlueskyEvent, BlueskyIntegrationSettings } from "./types";
+import { streamChecker } from "./stream-checker";
 
 const script: Firebot.CustomScript = {
   getScriptManifest: () => {
@@ -24,8 +28,9 @@ const script: Firebot.CustomScript = {
       description:
         "Enables posting to Bluesky and adds events for follows, likes, replies, and reposts.\n\nOnce installed, head to the Integrations tab in Firebot settings to configure your Bluesky account.",
       author: "ebiggz",
-      version: "2.4",
+      version: "2.4.1",
       firebotVersion: "5",
+      startupOnly: true,
     };
   },
   getDefaultParameters: () => {
@@ -33,6 +38,7 @@ const script: Firebot.CustomScript = {
   },
   run: (runRequest) => {
     initLogger(runRequest.modules.logger);
+    streamChecker.init(runRequest.modules.twitchApi);
 
     runRequest.modules.eventManager.registerEventSource(BLUESKY_EVENT_SOURCE);
 
@@ -53,6 +59,16 @@ const script: Firebot.CustomScript = {
 
     for (const effectType of blueskyEffectTypes) {
       runRequest.modules.effectManager.registerEffect(effectType as any);
+    }
+  },
+  stop: () => {
+    try {
+      streamChecker.removeAllListeners();
+      if (blueskyIntegration?.isAutomaticallySyncingLiveStatus) {
+        blueskyIntegration?.clearLiveStatus();
+      }
+    } catch (error) {
+      // Ignore
     }
   },
 };

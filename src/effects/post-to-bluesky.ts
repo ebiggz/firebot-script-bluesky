@@ -104,7 +104,6 @@ export const postToBlueskyEffectType: Effects.EffectType<
     </eos-container>
   `,
   optionsController: ($scope) => {
-    console.log("bluesky effect", $scope);
     $scope.replyOptions = [
       {
         value: "everyone",
@@ -236,7 +235,7 @@ export const postToBlueskyEffectType: Effects.EffectType<
         blueskyIntegration.bot,
         {
           shortenLinks: true,
-        }
+        },
       );
 
       const postPayload: PostPayload = {
@@ -277,7 +276,7 @@ export const postToBlueskyEffectType: Effects.EffectType<
         if (!replyToPost) {
           logger.error(
             "Unable to fetch post to reply to with AT URI",
-            replyToPostAtUri
+            replyToPostAtUri,
           );
           return {
             success: false,
@@ -309,7 +308,7 @@ export const postToBlueskyEffectType: Effects.EffectType<
 };
 
 function validateEffect(
-  data: PostToBlueskyData
+  data: PostToBlueskyData,
 ): [success: boolean, errorMessage?: string] {
   if (!data.text?.length) {
     return [false, "No text provided"];

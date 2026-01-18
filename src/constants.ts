@@ -45,8 +45,20 @@ export const BLUESKY_INTEGRATION_DEFINITION: IntegrationDefinition<BlueskyIntegr
             description:
               "Your Bluesky PDS. For most users, the default is fine. You'll most likely know if you need to change this",
             validation: {
-                required: true,
+              required: true,
             },
+          },
+        },
+      },
+      options: {
+        title: "Options",
+        settings: {
+          automaticallySyncLiveStatusWhenStreaming: {
+            type: "boolean",
+            default: false,
+            title: "Automatically sync live status when streaming (Beta)",
+            description:
+              "When enabled, Firebot will automatically update your Bluesky status to indicate when you are live streaming",
           },
         },
       },
