@@ -297,16 +297,16 @@ class BlueskyIntegration
             const avatarArrayBuffer = await avatarResponse.arrayBuffer();
             const contentType =
               avatarResponse.headers.get("content-type") ?? "image/jpeg";
-            // Use type assertion since the call method is inherited but not properly typed
-            const uploadResponse = await (this.bot.agent as any).call(
-              "com.atproto.repo.uploadBlob",
-              {
-                data: new Uint8Array(avatarArrayBuffer),
+
+            const uploadResponse = await this.bot.agent
+              .post("com.atproto.repo.uploadBlob", {
+                input: new Uint8Array(avatarArrayBuffer),
                 headers: { "content-type": contentType },
-              },
-            );
-            if (uploadResponse?.data?.blob) {
-              thumbBlob = uploadResponse.data.blob;
+              })
+              .catch(() => null as any);
+
+            if (uploadResponse?.blob?.size) {
+              thumbBlob = uploadResponse.blob;
             }
           }
         } catch (uploadError) {

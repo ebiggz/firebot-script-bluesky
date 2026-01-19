@@ -1,4 +1,3 @@
-import { UserAccount } from "@crowbartools/firebot-custom-scripts-types";
 import { TwitchApi } from "@crowbartools/firebot-custom-scripts-types/types/modules/twitch-api";
 import { TypedEmitter } from "tiny-typed-emitter";
 
