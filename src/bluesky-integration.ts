@@ -231,7 +231,7 @@ class BlueskyIntegration
       const isLiveOnTwitch = streamChecker.isLive;
       await this.handleTwitchLiveStatus(isLiveOnTwitch);
 
-      streamChecker.on("liveStatusChanged", async (isLiveOnTwitch) => {
+      streamChecker.on("liveStatusUpdate", async (isLiveOnTwitch) => {
         await this.handleTwitchLiveStatus(isLiveOnTwitch);
       });
     }

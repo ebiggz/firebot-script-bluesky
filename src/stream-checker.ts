@@ -2,7 +2,7 @@ import { TwitchApi } from "@crowbartools/firebot-custom-scripts-types/types/modu
 import { TypedEmitter } from "tiny-typed-emitter";
 
 class StreamChecker extends TypedEmitter<{
-  liveStatusChanged: (isLive: boolean) => void;
+  liveStatusUpdate: (isLive: boolean) => void;
 }> {
   private checkInterval: NodeJS.Timeout | null = null;
 
@@ -42,10 +42,8 @@ class StreamChecker extends TypedEmitter<{
 
     this.checkInterval = setInterval(async () => {
       const currentlyLive = await this.checkIfStreamerIsLive();
-      if (currentlyLive !== this.isLive) {
-        this.isLive = currentlyLive;
-        this.emit("liveStatusChanged", this.isLive);
-      }
+      this.isLive = currentlyLive;
+      this.emit("liveStatusUpdate", this.isLive);
     }, 30000); // Check every 30 seconds
   }
 }

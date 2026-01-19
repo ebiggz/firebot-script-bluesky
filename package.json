@@ -1,7 +1,7 @@
 {
   "name": "firebot-script-bluesky",
   "scriptOutputName": "bluesky",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "A Firebot script that adds a full-featured Bluesky integration",
   "main": "",
   "scripts": {

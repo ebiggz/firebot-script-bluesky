@@ -28,7 +28,7 @@ const script: Firebot.CustomScript = {
       description:
         "Enables posting to Bluesky and adds events for follows, likes, replies, and reposts.\n\nOnce installed, head to the Integrations tab in Firebot settings to configure your Bluesky account.",
       author: "ebiggz",
-      version: "2.4.2",
+      version: "2.4.3",
       firebotVersion: "5",
       startupOnly: true,
     };
