@@ -6,7 +6,7 @@
   * Attach **images** and **links**
   * Configure **reply permissions**
   * Post as a **reply** or build **threads** (using the AT URI output)
-  * Supports coverting standard **Markdown links** (`[text](https://example.com)`) into Bluesky **Rich Text Facets**
+  * Supports converting standard **Markdown links** (`[text](https://example.com)`) into Bluesky **Rich Text Facets**
 * Delete a post via **Delete Post On Bluesky** effect
 * Trigger **automations from Bluesky activity** with the following Events:
   * Follow
