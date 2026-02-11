@@ -1,6 +1,6 @@
 ## Features
 * Support for Bluesky's **Live Now** feature
-  * Option to automatically sync Live status to Bluesky when streaming
+  * Option to automatically sync Live status to Bluesky when streaming (including handling the 4 hour limit for longer streams)
   * Effects to manually Set or Clear your Live status
 * Create posts via **Post to Bluesky** effect
   * Attach **images** and **links**
